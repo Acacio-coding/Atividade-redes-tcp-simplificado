@@ -4,6 +4,7 @@ import Classes.Segment;
 import Classes.Timer;
 import lombok.Getter;
 
+//Classe que extende Segment. Expecialização para transferencia de dados
 @Getter
 public class DataSegment extends Segment {
 

@@ -3,6 +3,7 @@ package Classes;
 import lombok.Getter;
 import lombok.Setter;
 
+//Classe Abstrada de Segment com getter e setter
 @Getter
 @Setter
 public abstract class Segment {
@@ -15,6 +16,8 @@ public abstract class Segment {
     private boolean ack;
     private boolean nack;
     private boolean corrupted;
+
+    //Timer é uma classe com uma Thread referente ao Timeout do pacote
     private final Timer timer;
 
     public Segment(int originPort, int destinationPort, int number, Timer timer) {

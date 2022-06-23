@@ -3,6 +3,7 @@ package Classes.Sender;
 import Classes.Application;
 import lombok.Getter;
 
+//Aplicação contendo o payload e o transporte
 @Getter
 public class SenderApplication extends Application {
 
