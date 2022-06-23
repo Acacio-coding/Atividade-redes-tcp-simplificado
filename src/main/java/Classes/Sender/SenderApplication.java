@@ -3,8 +3,10 @@ package Classes.Sender;
 import Classes.Application;
 import lombok.Getter;
 
-//Aplicação contendo o payload e o transporte
 @Getter
+/*
+Aplicação emissora da mensagem
+ */
 public class SenderApplication extends Application {
 
     private final String payload;

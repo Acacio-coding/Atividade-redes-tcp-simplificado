@@ -9,33 +9,38 @@ import Classes.Transport;
 import lombok.Getter;
 import lombok.Setter;
 
-//Extendendo a classe de Transporte
 @Getter
 @Setter
+/*
+Transporte receptor
+ */
 public class ReceiverTransport extends Transport {
 
-    //Controlador da thread
+    //Variável de controle para finalizar a Thread
     public boolean stop = false;
 
     public ReceiverTransport(Communication communication, int port) {
         super(communication, port);
     }
 
-    //Thread que ficará em loop por toda a execução
     @Override
     public void run() {
         while(!stop) {
-
-            //Recebendo todos os segmentos da comunicação (caso tenha)
+            //Recepção dos pacotes destinados a esse transporte
             this.getCommunication().receiveSegment().forEach(currentReceived -> {
-
-                //Verificando se a porta de destino do pacote é igual a porta do transporte
-                //e se esse pacote já não foi adicionado no buffer de entrada
+                /*
+                Para cada segmento é verificado se a porta é igual a da aplição
+                e se já não contém na buffer de entrada
+                 */
                 if (currentReceived.getDestinationPort() == this.getPort()
                         && !this.getEntryBuffer().contains(currentReceived)) {
-                    
-                    //Adicionando no buffer de entrada e fazendo o Log
+                    /*
+                    Adiciona no buffer de entrada, para o timer do pacote e seta a variável que evita remoção
+                    da comunicação para true
+                     */
                     this.getEntryBuffer().add(currentReceived);
+                    currentReceived.getTimer().setStop(true);
+                    currentReceived.getTimer().setWasRemovedOnce(true);
                     System.out.println("\nReceiver ---------------------------");
                     System.out.println("Received package number: " + currentReceived.getNumber());
                     System.out.println("Type: " + currentReceived.getClass().getSimpleName());
@@ -43,43 +48,54 @@ public class ReceiverTransport extends Transport {
                 }
             });
 
-            //Verificando se tem algo no buffer de entrada
+            //Verifica se o buffer de entrada possuí algum segmento
             if (this.getEntryBuffer().size() > 0) {
-
-                //Para cada
                 for (Segment segment : this.getEntryBuffer()) {
-
-                    //Se for segmento de Data
                     if (segment instanceof DataSegment) {
-
-                        //Cria o esqueleto de um Segmento Flag que será enviado para a mesma porta do transmissor
+                        /*
+                        Instancia uma novo segmento de resposta e seta o número deste para o número do
+                        segmento de dado recebido + 1, ou caso esse número seja -1 seta o número do segmento
+                        de resposta para -1 também
+                         */
                         Segment toSend = new FlagSegment(this.getPort(),
-                                segment.getOriginPort(), (segment.getNumber() + 1), new Timer());
+                                segment.getOriginPort(),
+                                segment.getNumber() == -1 ? -1 : (segment.getNumber() + 1), new Timer());
 
-                        //Filtrando os segmentos da comunicação
+                        //Verifica se não existe nenhum pacote com número igual ao que está prestes a ser enviado
                         if (this.getCommunication().getSegments()
                                 .stream()
                                 .filter(current -> current instanceof FlagSegment)
                                 .noneMatch(current -> current.getNumber() == toSend.getNumber())) {
 
-                            //Se o Segmento não está corrompido e o numero não for negativo
+                            //Verifica se o pacote não está corrompido ou com o número de sequência comprometido
                             if (!segment.isCorrupted() && segment.getNumber() != -1) {
                                 toSend.setAck(true);
 
-                                //Remove do buffer de saida a flag correspondente
+                                /*
+                                Verifica se existe algum pacote NACK no buffer de saída para o pacote atual
+                                e remove se for verdadeiro
+                                 */
                                 this.getExitBuffer()
                                         .removeIf(current ->
                                                 current instanceof FlagSegment
                                                         && current.isNack()
-                                                        && current.getNumber() == (segment.getNumber() + 1));
+                                                        && current.getNumber() == (segment.getNumber() + 1)
+                                                        || current.getNumber() == -1);
 
-                                //Adicionando flag alterada no buffer de saida
+                                //Adiciona o pacote de resposta com ACK no buffer de saída
                                 this.getExitBuffer().add(toSend);
                             } else {
-
-                                //Settando a flag com Nack, adicionando no buffer de saida e removendo da entrada
                                 toSend.setNack(true);
+
+                                //Adiciona o pacote de resposta com NACK no buffer de saída
                                 this.getExitBuffer().add(toSend);
+
+                                //Remove o pacote corrompido do meio de comunicação
+                                this.getCommunication().getSegments()
+                                        .removeIf(current ->
+                                                current.getNumber() == segment.getNumber() && current.isCorrupted());
+
+                                //Remove o pacote corrompido do buffer de entrada
                                 this.getEntryBuffer().remove(segment);
                             }
                         }
@@ -87,39 +103,37 @@ public class ReceiverTransport extends Transport {
                 }
             }
 
-            //Verifica se tem algo no buffer de saida
+            //Verifica se o buffer de saída possuí algum segmento
             if (this.getExitBuffer().size() > 0) {
-
-                //Para cada
                 for (Segment segment : this.getExitBuffer()) {
-
-                    //Verifica se o segmento não está na comunicação
+                    //Verifica se não existe o segmento na comunicação
                     if (!this.getCommunication().getSegments().contains(segment)) {
-
                         try {
-                            //Inicializando o timer do pacote
-                            if (!segment.getTimer().isTimerEnded() && !segment.getTimer().isAlive()) {
+                            //Verifica se o timer já não foi iniciado para inicia-lo
+                            if (!segment.getTimer().isStop() && !segment.getTimer().isAlive()) {
                                 segment.getTimer().start();
                             }
 
-                            //Fazendo o log
+                            //Enviando pacote para a comunicação
                             System.out.println("\nReceiver ---------------------------");
                             System.out.println("Sending package number: " + segment.getNumber());
                             System.out.println("Type: " + segment.getClass().getSimpleName());
-                            System.out.println("Related to package number: " + (segment.getNumber() - 1));
+                            System.out.println("Related to package number: "
+                                    + (segment.getNumber() == -1 ? -1 : segment.getNumber() - 1));
 
+                            this.getCommunication().sendSegment(segment);
+
+                            //Remove do buffer de saída caso seja um pacote com ACK
                             if (segment.isAck()) {
                                 System.out.println("Flags: ");
                                 System.out.println("ACK: " + segment.isAck());
+                                this.getExitBuffer().remove(segment);
                             }
 
                             if (segment.isNack()) {
                                 System.out.println("Flags: ");
                                 System.out.println("NACK: " + segment.isNack());
                             }
-
-                            //enviando Semento para comunicação
-                            this.getCommunication().sendSegment(segment);
                         } catch (InterruptedException e) {
                             throw new RuntimeException(e);
                         }

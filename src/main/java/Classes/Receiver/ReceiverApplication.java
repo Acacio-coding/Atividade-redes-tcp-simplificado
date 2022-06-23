@@ -6,14 +6,12 @@ import Classes.Segment;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-
-//Aplicação do recptor contendo o transporte a ordenação dos Segmentos e
-//o construtor da mensagem (StringBuilder)
 @Getter
 @Setter
+/*
+Aplicação receptora contendo o transporte a um array com os segmentos ordenados
+do buffer de entrada do transporte e a mensagem final (StringBuilder)
+ */
 public class ReceiverApplication extends Application {
 
     private final ReceiverTransport transport;
@@ -27,12 +25,10 @@ public class ReceiverApplication extends Application {
         this.message = new StringBuilder();
     }
 
-    //Adicionando segmento no aray ordenado
     public void addSegmentToOrderedArray(Segment part) {
-        orderedSegments[((DataSegment) part).getExpectedResponseNumber() -1] = ((DataSegment) part).getData();
+        orderedSegments[part.getNumber()] = ((DataSegment) part).getData();
     }
 
-    //Criando a mensagem apartir da sequencia dos pacotes
     public String getFinalMessage() {
         for (char orderedSegment : orderedSegments) {
             message.append(orderedSegment);

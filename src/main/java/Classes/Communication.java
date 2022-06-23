@@ -1,12 +1,9 @@
 package Classes;
 
 import Classes.Package.DataSegment;
-import Classes.Package.FlagSegment;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -15,62 +12,62 @@ import java.util.concurrent.LinkedBlockingDeque;
 @Setter
 public class Communication {
 
-    //Lista tipo LinkedBlockingDeque
+    //Estrutura de dado compartilhada entre as Threads
     private Queue<Segment> segments = new LinkedBlockingDeque<>();
 
-    //Random para criar um numero aleatório
+    //Para gerar um número randômico e corromper um pacote
     private Random random = new Random();
 
-    //Flag para deixar apenas um pacote corromper
+    //Variável de controle para corromper pacote
     private boolean corruptedOnce = false;
-    
-    //Numero de segmento Válido
+
+    //Número válido do pacote corrompido
     private int validSegmentNumber;
 
-    //Função syncronized para receber Segmentos
     public synchronized Queue<Segment> receiveSegment() {
-
-        //Percorre os segmentos verificando o timer e settando ele como removido
+        // Itera entre os segmentos na queue e remove caso o timer tenha finalizado
         for (Segment segment : segments) {
-            segments.removeIf(current -> current.getTimer().isTimerEnded()
-                    && !current.getTimer().isWasRemoveOnce() && current == segment);
-            segment.getTimer().setWasRemoveOnce(true);
+            if (segments.removeIf(current -> current.getTimer().isTimerEnded()
+                    && !current.getTimer().isWasRemovedOnce() && current == segment)) {
+                segment.getTimer().setWasRemovedOnce(true);
+            }
         }
-        //Retornando Segmentos
+
         return segments;
     }
 
-    //Função synchronized para enviar segmentos
     public synchronized void sendSegment(Segment segment) throws InterruptedException {
-        //Verifica se o pacote não está na fila
         if (!this.segments.contains(segment)) {
-
-            //Verifica se algum pacote já foi corrompido
+            //Corrompe o segmento
             if (!corruptedOnce) {
                 setValidSegmentNumber(segment.getNumber());
 
-                //Cria um numero aleatorio para ver se vai corromper
+                //Corrompe o segmento
                 if (random.nextInt(100) > 50) {
                     segment.setCorrupted(true);
-                } else {
-                    segment.setCorrupted(true);
-                    segment.setNumber(-1);
+
+                    //Corrompe o número de sequência
+                    if (random.nextInt(10) > 5) {
+                        segment.setNumber(-1);
+                    }
                 }
 
-                //Settando para não corromper mais e adicionando segmento
+                //Seta a variável de controle de pacote corrompido para true evitando corromper novamente
                 setCorruptedOnce(true);
+                //Adiciona o segmento na queue
                 this.segments.add(segment);
             } else {
-                if (segment.getNumber() == -1) {
-                    segment.setNumber(validSegmentNumber);
-                } else if (segment instanceof FlagSegment && segment.getNumber() == 0) {
-                    segment.setNumber((validSegmentNumber + 1));
-                }
-
-                //Se o pacote já vier corrompido ele apenas desmarca se não adiciona nos segmentos
+                //Descorrompe o segmento e/ou seta o número válido do segmento
                 if (segment.isCorrupted()) {
                     segment.setCorrupted(false);
+                } else if (segment.getNumber() == -1) {
+                    if (segment instanceof DataSegment) {
+                        segment.setNumber(validSegmentNumber);
+                    } else {
+                        segment.setNumber(validSegmentNumber + 1);
+                    }
                 } else {
+                    //Adiciona o segmento na queue
                     this.segments.add(segment);
                 }
             }
