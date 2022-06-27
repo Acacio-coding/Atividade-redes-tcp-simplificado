@@ -24,6 +24,8 @@ public class Main {
                         Todo mundo vê os porris que eu tomo, mas ninguém vê os tombis que eu levo!Pra lá , depois divoltis porris, paradis.Atirei o pau no gatis, per gatis num morreus.Praesent malesuada urna nisi, quis volutpat erat hendrerit non. Nam vulputate dapibus.""",
                 senderTransport);
 
+        communication.setMAXNUMBER(sender.getPayload().length());
+
         //Criando receptor
         ReceiverApplication receiver = new ReceiverApplication(
                 1002,
@@ -61,7 +63,8 @@ public class Main {
                 }
 
                 //Printa a mensagem
-                System.out.println("\nMessage received: " + receiver.getFinalMessage() + "\n");
+                System.out.println("\nMessage received: ");
+                System.err.println(receiver.getFinalMessage());
                 break;
             }
         }

@@ -19,10 +19,18 @@ public class Communication {
     private Random random = new Random();
 
     //Variável de controle para corromper pacote
-    private boolean corruptedOnce = false;
+    private boolean drawedNumber = false;
 
-    //Número válido do pacote corrompido
+    //Número válido do pacote corrompido se corromper o número de sequência
     private int validSegmentNumber;
+
+    //Número de pacote que vai ser corrompido
+    private int toCorruptNumber;
+
+    //Número máximo de acordo com o tamanho da mensagem
+    private int MAXNUMBER;
+
+    private boolean corruptedOnce = false;
 
     public synchronized Queue<Segment> receiveSegment() {
         // Itera entre os segmentos na queue e remove caso o timer tenha finalizado
@@ -38,22 +46,26 @@ public class Communication {
 
     public synchronized void sendSegment(Segment segment) throws InterruptedException {
         if (!this.segments.contains(segment)) {
-            //Corrompe o segmento
-            if (!corruptedOnce) {
-                setValidSegmentNumber(segment.getNumber());
+            if (!drawedNumber) {
+                toCorruptNumber = random.nextInt(MAXNUMBER);
 
+                //Seta a variável de controle de sorteio de número para true para não sortar novamente
+                setDrawedNumber(true);
+            } else if (segment.getNumber() == toCorruptNumber && !corruptedOnce) {
                 //Corrompe o segmento
-                if (random.nextInt(100) > 50) {
-                    segment.setCorrupted(true);
+                segment.setCorrupted(true);
+                setValidSegmentNumber(toCorruptNumber);
 
-                    //Corrompe o número de sequência
-                    if (random.nextInt(10) > 5) {
-                        segment.setNumber(-1);
-                    }
+                System.err.println("\n\n\n\n\nCorrompendo PACOTE: " + segment.getNumber() + "\n\n\n\n\n");
+
+                //Corrompe o número de sequência
+                if (random.nextInt(1, 3) == 1) {
+                    segment.setNumber(-1);
                 }
 
                 //Seta a variável de controle de pacote corrompido para true evitando corromper novamente
                 setCorruptedOnce(true);
+
                 //Adiciona o segmento na queue
                 this.segments.add(segment);
             } else {
